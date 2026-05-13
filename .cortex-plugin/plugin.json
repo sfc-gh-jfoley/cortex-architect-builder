@@ -1,0 +1,7 @@
+{
+  "name": "cortex-architect-builder",
+  "description": "Multi-agent project framework: Architect/Security/Researcher/Worker/Tester roles for building any software project with coordinated agents",
+  "version": "1.0.0",
+  "author": { "name": "Joey Foley" },
+  "skills": ["./skills"]
+}
