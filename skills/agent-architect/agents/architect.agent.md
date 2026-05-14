@@ -103,6 +103,16 @@ After the intake interview completes and before spawning researchers:
 
 6. Workers will branch from `main` — never commit directly to `main`.
 
+6b. **Initialize manifest.log:**
+    ```bash
+    touch .agent-project/manifest.log
+    echo "# Manifest Log — append-only completion tracking" > .agent-project/manifest.log
+    echo "# Format: TIMESTAMP | WORKER | STATUS | DETAILS" >> .agent-project/manifest.log
+    echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | architect | INITIALIZED | <project-slug>" >> .agent-project/manifest.log
+    git add .agent-project/manifest.log
+    git commit -m "init: manifest.log for durable completion tracking"
+    ```
+
 ---
 
 ## Research Phase — Spawning Researchers
@@ -325,6 +335,27 @@ Task(
 
 ## Monitoring Mode
 
+### Ground Truth: manifest.log
+
+The manifest.log file is the **source of truth** for task completion state. Task notifications from CoCo are a convenience signal — they can be lost in context floods, session cleanup, or discovery noise.
+
+**Always verify against the log before acting:**
+```bash
+# Check which tasks are done
+grep "DONE\|BLOCKED" .agent-project/manifest.log
+
+# Check if a specific worker finished
+grep "<worker_name>" .agent-project/manifest.log | tail -1
+```
+
+**Rule: Never merge a branch whose worker has no DONE entry in manifest.log.**
+
+If a task notification arrives but manifest.log has no corresponding DONE line:
+- The worker may have crashed before writing the log
+- Re-check the branch: `git log origin/<branch> --oneline -1`
+- If commits exist but no log entry: manually append the DONE line and proceed
+- If no commits exist: treat as incomplete, re-spawn the worker
+
 As task notifications arrive from teammates:
 
 1. **Worker completes** → spawn SecArch review for that task
@@ -376,6 +407,19 @@ Actions:
 ## SHIP Phase
 
 Triggered when all tasks are COMPLETE and Global Review is CONSISTENT.
+
+**PRE-SHIP VERIFICATION:**
+```bash
+# Verify all tasks have DONE entries
+DONE_COUNT=$(grep -c "| DONE |" .agent-project/manifest.log)
+EXPECTED_TASKS=<total_task_count>
+if [ "$DONE_COUNT" -lt "$EXPECTED_TASKS" ]; then
+    echo "WARNING: Only $DONE_COUNT/$EXPECTED_TASKS tasks have DONE entries"
+    # Check for BLOCKED entries
+    grep "BLOCKED" .agent-project/manifest.log
+fi
+```
+Do NOT proceed to merge unless all non-blocked tasks have DONE entries.
 
 **STEP 1 — Merge all Worker PRs:**
 ```bash

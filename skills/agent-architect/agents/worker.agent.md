@@ -35,6 +35,15 @@ You receive from the Architect:
 git checkout -b agent/worker-<team_id>/<task_id>
 ```
 
+### STEP 1.5 — Log STARTED
+
+Append your start entry to the manifest log:
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <your_worker_name> | STARTED | agent/worker-<team_id>/<task_id> | <task_title>" >> .agent-project/manifest.log
+git add .agent-project/manifest.log
+git commit -m "log: started <task_id>"
+```
+
 ### STEP 2 — Write Failing Tests (TDD-First)
 
 Before writing ANY implementation code:
@@ -92,7 +101,17 @@ if cycle == 3 and still failing:
 git add -A
 git commit -m "feat(<task_id>): <task_title>"
 git push origin agent/worker-<team_id>/<task_id>
+```
 
+After pushing, log completion:
+```bash
+SHA=$(git rev-parse --short HEAD)
+FILES_CHANGED=$(git diff --shortstat HEAD~1 | sed 's/^ //')
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <your_worker_name> | COMMITTED | $SHA | $FILES_CHANGED" >> .agent-project/manifest.log
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <your_worker_name> | PUSHED | origin/agent/worker-<team_id>/<task_id>" >> .agent-project/manifest.log
+```
+
+```bash
 gh pr create \
   --title "[<task_id>] <task_title>" \
   --body "## Summary
@@ -104,6 +123,13 @@ gh pr create \
 ## Files Modified
 <list>" \
   --base main
+```
+
+After PR creation:
+```bash
+echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <your_worker_name> | DONE | PR: <pr_url>" >> .agent-project/manifest.log
+git add .agent-project/manifest.log
+git commit -m "log: done <task_id>" && git push
 ```
 
 ### STEP 6 — Return Results
@@ -141,7 +167,13 @@ If you discover you need something built by another task that isn't complete yet
 1. Check if the file/interface exists in the worktree
 2. If NOT: STOP immediately
 3. Report as BLOCKER: "Depends on <task_id> — need <specific interface/file>"
-4. EXIT — the Architect will re-spawn you after the dependency completes
+4. Before exiting, log the block:
+   ```bash
+   echo "$(date -u +%Y-%m-%dT%H:%M:%SZ) | <your_worker_name> | BLOCKED | Depends on <task_id> — <what you need>" >> .agent-project/manifest.log
+   git add .agent-project/manifest.log
+   git commit -m "log: blocked <task_id>" && git push
+   ```
+5. EXIT — the Architect will re-spawn you after the dependency completes
 
 ## Retry Protocol
 
