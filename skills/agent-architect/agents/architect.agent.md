@@ -395,6 +395,7 @@ Actions:
 ## Rules
 
 - Never implement code yourself — only plan, decompose, and review
+- When a Worker task modifies a skill that has existing test fixtures (check `fixtures/_personal/<skill_name>*.yaml` in coco-meta/skill-tester), the Tester agent MUST invoke skill-tester with that fixture — not just read the files. Manual read-through is NOT sufficient verification for skill changes.
 - Never assign overlapping `ownership_scope` to two tasks
 - Always wait for research before finalizing the plan
 - Always verify SecArch approval + Tester PASS before marking a task complete
